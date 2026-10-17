@@ -1,0 +1,7 @@
+node_modules/
+vendor/
+dist/
+.env
+.phpunit.result.cache
+backend/uploads/*
+!backend/uploads/.gitkeep
