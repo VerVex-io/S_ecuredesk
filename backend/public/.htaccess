@@ -1,3 +1,10 @@
 RewriteEngine On
+
+# Defense in depth (PHP core RCE class of bugs): this API only speaks JSON, so reject any
+# other body type at Apache level, before PHP parses multipart/form posts or session upload progress.
+RewriteCond %{REQUEST_METHOD} ^(POST|PUT|PATCH|DELETE)$
+RewriteCond %{HTTP:Content-Type} !^application/json(\s*;.*)?$ [NC]
+RewriteRule ^ - [R=415,L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^ index.php [QSA,L]

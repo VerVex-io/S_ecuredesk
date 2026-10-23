@@ -6,31 +6,51 @@ require __DIR__ . '/../vendor/autoload.php';
 use App\Controllers\AuthController;
 use App\Controllers\TicketController;
 use App\Response;
+use App\Validator;
 
-// --- Secure defaults -------------------------------------------------------
-session_set_cookie_params([
-    'lifetime' => 0,
-    'path'     => '/',
-    'httponly' => true,
-    'samesite' => 'Lax',
-    'secure'   => false, // set to true behind HTTPS in production
-]);
-session_start();
+// --- Environment -----------------------------------------------------------
+$isProd  = (getenv('APP_ENV') ?: 'development') === 'production';
+$isHttps = ($_SERVER['HTTPS'] ?? '') === 'on' || strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+// Secure cookies are mandatory in production; in dev (plain http://localhost) they would never be sent.
+$secureCookie = $isProd || $isHttps;
 
+header_remove('X-Powered-By');
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: no-referrer');
 header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
+header('Permissions-Policy: geolocation=(), camera=(), microphone=()');
+header('Cross-Origin-Resource-Policy: same-origin');
+header('Cache-Control: no-store');
+if ($secureCookie) {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
 
 $method = $_SERVER['REQUEST_METHOD'];
 $path   = rtrim((string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/') ?: '/';
 
-// CSRF mitigation: state-changing requests must be JSON (cannot be sent by a plain HTML form)
+// --- Sessions --------------------------------------------------------------
+// Only start a session when the client already has one, or is logging in.
+// Anonymous traffic no longer creates a session file per request.
+session_name('SDSESSID');
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'httponly' => true,
+    'samesite' => 'Lax',
+    'secure'   => $secureCookie,
+]);
+if (isset($_COOKIE[session_name()]) || ($method === 'POST' && $path === '/api/login')) {
+    session_start();
+}
+
+// --- CSRF mitigation + body parsing ------------------------------------------
+// State-changing requests must be exactly application/json (cannot be sent by a plain HTML form,
+// and cross-site JSON requires a CORS preflight, which this API never grants).
 $input = [];
 if (in_array($method, ['POST', 'PATCH', 'PUT', 'DELETE'], true)) {
-    $ctype = $_SERVER['CONTENT_TYPE'] ?? '';
-    if (!str_starts_with($ctype, 'application/json')) {
+    if (!Validator::isJsonContentType($_SERVER['CONTENT_TYPE'] ?? '')) {
         Response::json(['error' => 'Content-Type must be application/json'], 415);
     }
     $input = json_decode(file_get_contents('php://input') ?: '{}', true);

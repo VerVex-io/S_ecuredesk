@@ -39,8 +39,15 @@ Demo accounts (dev only, password `Password123!`): `admin@securedesk.test`, `age
 - Object-level authorization on every ticket route (IDOR); role is never accepted from the client
 - Generic auth errors and 500s (no user enumeration or info leaks)
 - Security headers on every response; React output escaping (XSS)
+- Login rate limiting (5 failures / 15 min per IP+email, 30 per IP) and constant-time login (no timing-based user enumeration)
+- Sessions: strict mode, idle (30 min) and absolute (8 h) timeouts, role re-read from the DB on every request, `Secure` cookie + HSTS when `APP_ENV=production`
+- Strict `application/json` check in PHP and in Apache (`public/.htaccess`); input length caps
+- PHP hardening in `backend/docker/` (production php.ini, `session.upload_progress` off, `expose_php` off) and a build-time guard that refuses PHP older than 8.3.36 (CVE-2026-109618/109619). Rebuild with `docker compose build --pull backend`
+- `bin/seed.php` refuses to run when `APP_ENV=production`; dev ports bind to 127.0.0.1 only
 
 See the companion repo **securedesk-security-audit** for the pentest of a deliberately vulnerable version.
+
+See [CHANGELOG.md](CHANGELOG.md) for security fixes by version.
 
 ## Tests
 ```bash
@@ -51,6 +58,9 @@ CI runs the backend tests and the frontend build on every push.
 ## Roadmap
 - [ ] File attachments (type/size whitelist, stored outside the web root)
 - [ ] Assign tickets to agents, admin dashboard
-- [ ] Rate limiting on login
+- [x] Rate limiting on login
+- [ ] Run containers as non-root; add a `composer.lock` (run `composer install` once and commit it)
+- [ ] Production CSP headers for the built SPA (set on the web server that serves `frontend/dist`)
 - [ ] JMeter load-test results (see `jmeter/`)
 - [ ] Integration tests against a MySQL service in CI
+

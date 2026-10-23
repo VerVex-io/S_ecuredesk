@@ -1,5 +1,10 @@
 <?php
 // Usage: docker compose exec backend php bin/seed.php   (DEV ONLY)
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
+if ((getenv('APP_ENV') ?: 'development') === 'production') {
+    fwrite(STDERR, "Refusing to seed known demo credentials in production.\n");
+    exit(1);
+}
 require __DIR__ . '/../vendor/autoload.php';
 
 $pdo = App\Database::pdo();

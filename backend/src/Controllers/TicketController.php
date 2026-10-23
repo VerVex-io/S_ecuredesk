@@ -19,13 +19,16 @@ final class TicketController
             $where[]  = 't.author_id = ?';
             $params[] = $user['id'];
         }
-        if (isset($_GET['status']) && Validator::status((string) $_GET['status'])) {
+        $status = $_GET['status'] ?? null;
+        if (is_string($status) && Validator::status($status)) {
             $where[]  = 't.status = ?';
-            $params[] = $_GET['status'];
+            $params[] = $status;
         }
-        if (!empty($_GET['q'])) {
+        $q = $_GET['q'] ?? null;
+        if (is_string($q) && $q !== '') {
+            $q = mb_substr($q, 0, 100);
             $where[]  = 't.title LIKE ?';
-            $params[] = '%' . str_replace(['%', '_'], ['\%', '\_'], (string) $_GET['q']) . '%';
+            $params[] = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q) . '%';
         }
         if ($where) {
             $sql .= ' WHERE ' . implode(' AND ', $where);
@@ -38,11 +41,11 @@ final class TicketController
     public function create(array $in): void
     {
         $user  = Auth::require();
-        $title = trim((string) ($in['title'] ?? ''));
-        $desc  = trim((string) ($in['description'] ?? ''));
-        $prio  = (string) ($in['priority'] ?? 'medium');
+        $title = trim(is_scalar($in['title'] ?? null) ? (string) $in['title'] : '');
+        $desc  = trim(is_scalar($in['description'] ?? null) ? (string) $in['description'] : '');
+        $prio  = is_scalar($in['priority'] ?? null) ? (string) $in['priority'] : 'medium';
 
-        if (!Validator::ticketTitle($title) || $desc === '' || !Validator::priority($prio)) {
+        if (!Validator::ticketTitle($title) || !Validator::ticketDescription($desc) || !Validator::priority($prio)) {
             Response::json(['error' => 'Invalid ticket data'], 422);
         }
         $pdo = Database::pdo();
@@ -73,7 +76,7 @@ final class TicketController
         }
         $this->findAuthorized($user, $id);
 
-        $status = (string) ($in['status'] ?? '');
+        $status = is_scalar($in['status'] ?? null) ? (string) $in['status'] : '';
         if (!Validator::status($status)) {
             Response::json(['error' => 'Invalid status'], 422);
         }
@@ -86,7 +89,7 @@ final class TicketController
         $user = Auth::require();
         $this->findAuthorized($user, $id);
 
-        $body = trim((string) ($in['body'] ?? ''));
+        $body = trim(is_scalar($in['body'] ?? null) ? (string) $in['body'] : '');
         if ($body === '' || mb_strlen($body) > 5000) {
             Response::json(['error' => 'Invalid comment'], 422);
         }

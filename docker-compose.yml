@@ -21,10 +21,11 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
+      APP_ENV: ${APP_ENV:-development}
     volumes:
       - ./backend:/var/www/html
     ports:
-      - "8081:80"
+      - "127.0.0.1:8080:80"
     depends_on:
       db:
         condition: service_healthy
@@ -38,7 +39,7 @@ services:
     volumes:
       - ./frontend:/app
     ports:
-      - "5173:5173"
+      - "127.0.0.1:5173:5173"
     depends_on:
       - backend
 
