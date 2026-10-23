@@ -54,6 +54,3 @@ CI runs the backend tests and the frontend build on every push.
 - [ ] Rate limiting on login
 - [ ] JMeter load-test results (see `jmeter/`)
 - [ ] Integration tests against a MySQL service in CI
-
-## What I learned
-Write 3 to 4 sentences here once you finish.
